@@ -1,8 +1,12 @@
-import { Telegraf } from "telegraf";
+import { Telegraf, session } from "telegraf";
 import { message } from "telegraf/filters";
 import { code } from "telegraf/format";
 import { ogg } from './oog.js'
 import { openai } from './openai.js'
+
+const INITIAL_SESSION = {
+	messages: [],
+}
 
 const bot = new Telegraf(process.env.GPT_BOT_TOKEN)
   
@@ -10,7 +14,20 @@ bot.command('start', async (ctx) => {
 	await ctx.reply(JSON.stringify(ctx.message, null, 2));
 })
 
+bot.use(session());
+
+bot.command('new', async (ctx) => {
+	ctx.session = INITIAL_SESSION;
+	await ctx.reply('Жду запрос');
+})
+
+bot.command('start', async (ctx) => {
+	ctx.session = INITIAL_SESSION;
+	await ctx.reply('Жду ваше сообщение');
+})
+
 bot.on(message('voice'), async (ctx) => {
+	ctx.session ??= INITIAL_SESSION;
 	try {
 		await ctx.reply(code('Обрабатываю голосовое'))
 		const link = await ctx.telegram.getFileLink(ctx.message.voice.file_id)
@@ -20,9 +37,28 @@ bot.on(message('voice'), async (ctx) => {
 
 		const text = await openai.transcription(mp3Path);
 		await ctx.reply(code(`Ваш запрос: ${text}`))
+		
+		ctx.session.messages.push({ role: openai.roles.USER, content: text })
+		const response = await openai.chat(ctx.session.messages);
 
-		const messages = [{ role: openai.roles.USER, content: text }]
-		const response = await openai.chat(messages);
+		ctx.session.messages.push({ role: openai.roles.ASSISTANT, content: response.content })
+		await ctx.reply(response.content);
+	} catch (e) {
+		console.error(e)
+	}
+})
+
+
+bot.on(message('text'), async (ctx) => {
+	ctx.session ??= INITIAL_SESSION;
+	try {
+		await ctx.reply(code('Обрабатываю текст'))
+		await ctx.reply(code(`Ваш запрос: ${ctx.message.text}`))
+
+		ctx.session.messages.push({ role: openai.roles.USER, content: ctx.message.text })
+		const response = await openai.chat(ctx.session.messages);
+
+		ctx.session.messages.push({ role: openai.roles.ASSISTANT, content: response.content })
 		await ctx.reply(response.content);
 	} catch (e) {
 		console.error(e)
