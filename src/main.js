@@ -1,6 +1,8 @@
 import { Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
+import { code } from "telegraf/format";
 import { ogg } from './oog.js'
+import { openai } from './openai.js'
 
 const bot = new Telegraf(process.env.GPT_BOT_TOKEN)
   
@@ -10,14 +12,18 @@ bot.command('start', async (ctx) => {
 
 bot.on(message('voice'), async (ctx) => {
 	try {
+		await ctx.reply(code('Обрабатываю голосовое'))
 		const link = await ctx.telegram.getFileLink(ctx.message.voice.file_id)
 		const userId = String(ctx.message.from.id);
 		const oggPath = await ogg.create(link.href, userId);
 		const mp3Path = await ogg.toMp3(oggPath, userId)
 
+		const text = await openai.transcription(mp3Path);
+		await ctx.reply(code(`Ваш запрос: ${text}`))
 
-		const text = await OpenAI.t
-		await ctx.reply(JSON.stringify(mp3Path, null, 2));
+		const messages = [{ role: openai.roles.USER, content: text }]
+		const response = await openai.chat(messages);
+		await ctx.reply(response.content);
 	} catch (e) {
 		console.error(e)
 	}
