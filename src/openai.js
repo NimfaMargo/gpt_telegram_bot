@@ -1,5 +1,6 @@
 import { Configuration, OpenAIApi } from 'openai';
 import { createReadStream } from 'fs';
+import config from 'config'
 
 class OpenAI {
 	roles = {
@@ -38,4 +39,4 @@ class OpenAI {
 	}
 }
 
-export const openai = new OpenAI(process.env.OPENAI_API_KEY)
+export const openai = new OpenAI(config.OPENAI_API_KEY)

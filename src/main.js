@@ -3,12 +3,13 @@ import { message } from "telegraf/filters";
 import { code } from "telegraf/format";
 import { ogg } from './oog.js'
 import { openai } from './openai.js'
+import config from 'config'
 
 const INITIAL_SESSION = {
 	messages: [],
 }
 
-const bot = new Telegraf(process.env.GPT_BOT_TOKEN)
+const bot = new Telegraf(config.GPT_BOT_TOKEN)
   
 bot.command('start', async (ctx) => {
 	await ctx.reply(JSON.stringify(ctx.message, null, 2));
